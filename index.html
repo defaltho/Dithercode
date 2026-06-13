@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DitherCode — defaltho</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap">
+<style>
+/* ============================================================
+   defaltho — Experiments tool base
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Inter', 'Inter Fallback', Helvetica, Arial, sans-serif;
+}
+canvas { display: block; }
+
+#panel {
+  position: fixed; top: 22px; left: 22px;
+  z-index: 200;
+  width: 208px;
+  background: rgba(0,0,0,0.78);
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: #fff;
+  font-size: 11px;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.2s;
+}
+#panel.hidden { opacity: 0; pointer-events: none; }
+
+#panel .panel-title {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.slider-row { margin-bottom: 4px; }
+.slider-row .lbl {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: rgba(255,255,255,0.6);
+  margin-bottom: 1px;
+}
+.slider-row .lbl span { color: #fff; }
+.slider-row input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 3px;
+  background: #333; outline: none;
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; cursor: pointer;
+}
+.slider-row input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border: none; border-radius: 50%;
+  background: #fff; cursor: pointer;
+}
+
+.section-label {
+  color: rgba(255,255,255,0.45);
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+  margin: 10px 0 5px;
+}
+
+.tool-btn {
+  width: 100%; padding: 6px; border: none; border-radius: 3px;
+  background: #222; color: #888; font-size: 10px;
+  cursor: pointer; margin-top: 8px; font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.tool-btn:hover { background: #333; color: #ccc; }
+.tool-btn.active { background: #fff; color: #000; }
+
+.hint {
+  text-align: center; color: rgba(255,255,255,0.25);
+  font-size: 9px; margin-top: 8px;
+}
+
+@media (max-width: 700px) {
+  #panel { width: calc(100vw - 44px); top: 22px; }
+}
+
+#panel.dock-right { left: auto; right: 22px; }
+
+#panel {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+#panel::-webkit-scrollbar { width: 6px; }
+#panel::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+.ctl { margin-bottom: 7px; }
+.ctl .lbl {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 3px;
+}
+.ctl .lbl span { color: #fff; }
+.ctl .lbl .val { color: rgba(255,255,255,0.55); }
+.ctl .lbl .val.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+.ctl-section {
+  color: rgba(255,255,255,0.45);
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 14px 0 7px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.ctl-section:first-child { margin-top: 0; }
+.ctl-note { color: rgba(255,255,255,0.35); font-size: 9px; line-height: 1.5; }
+
+.ctl-slider input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 3px; background: #333; outline: none;
+}
+.ctl-slider input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%; background: #fff; cursor: pointer;
+}
+.ctl-slider input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border: none; border-radius: 50%; background: #fff; cursor: pointer;
+}
+
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: "▾"; position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,0.5); font-size: 9px; pointer-events: none;
+}
+.ctl-select select, .ctl-text input, .ctl-number input {
+  width: 100%; appearance: none; -webkit-appearance: none;
+  background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 4px;
+  padding: 6px 22px 6px 8px; font: inherit; font-size: 11px; cursor: pointer;
+}
+.ctl-text input, .ctl-number input { padding-right: 8px; cursor: text; }
+.ctl-select select:focus, .ctl-text input:focus, .ctl-number input:focus {
+  outline: none; border-color: #666;
+}
+
+.seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.seg-btn {
+  flex: 1 1 auto; min-width: 0; padding: 5px 6px; border: 1px solid #333;
+  border-radius: 4px; background: #1a1a1a; color: #888;
+  font: inherit; font-size: 10px; font-weight: 600; cursor: pointer;
+  transition: all 0.12s; white-space: nowrap;
+}
+.seg-btn:hover { color: #ccc; border-color: #555; }
+.seg-btn.active { background: #fff; color: #000; border-color: #fff; }
+
+.ctl-color input[type=color] {
+  width: 100%; height: 26px; border: 1px solid #333; border-radius: 4px;
+  background: #1a1a1a; padding: 2px; cursor: pointer;
+}
+.ctl-color input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.ctl-color input[type=color]::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+.ctl-toggle { display: flex; justify-content: space-between; align-items: center; }
+.ctl-toggle .lbl-inline { font-size: 11px; color: #fff; }
+.switch {
+  width: 34px; height: 18px; border-radius: 9px; border: 1px solid #444;
+  background: #1a1a1a; position: relative; cursor: pointer; padding: 0; flex: 0 0 auto;
+  transition: background 0.15s, border-color 0.15s;
+}
+.switch i {
+  position: absolute; top: 2px; left: 2px; width: 12px; height: 12px;
+  border-radius: 50%; background: #777; transition: transform 0.15s, background 0.15s;
+}
+.switch.on { background: #fff; border-color: #fff; }
+.switch.on i { transform: translateX(16px); background: #000; }
+
+.swatch-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.swatch { position: relative; width: 28px; height: 28px; }
+.swatch input[type=color] {
+  width: 100%; height: 100%; border: 1px solid #333; border-radius: 4px;
+  background: none; padding: 0; cursor: pointer;
+}
+.swatch input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.swatch input[type=color]::-webkit-color-swatch { border: none; border-radius: 3px; }
+.swatch .sw-x {
+  position: absolute; top: -6px; right: -6px; width: 15px; height: 15px;
+  border-radius: 50%; border: none; background: #000; color: #fff; font-size: 11px;
+  line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.12s;
+}
+.swatch:hover .sw-x { opacity: 1; }
+.swatch-add {
+  width: 28px; height: 28px; border: 1px dashed #444; border-radius: 4px;
+  background: transparent; color: #888; font-size: 15px; cursor: pointer;
+}
+.swatch-add:hover { color: #fff; border-color: #777; }
+
+.tool-btn.primary { background: #fff; color: #000; }
+.tool-btn.primary:hover { background: #ddd; color: #000; }
+.ctl-file, .ctl-button { margin-bottom: 7px; }
+
+/* tool-specific */
+#hint-drop {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #555; font-size: 13px; letter-spacing: 0.04em; pointer-events: none;
+}
+body.dragging #hint-drop { color: #fff; }
+body.has-img #hint-drop { display: none; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="hint-drop">drop an image &nbsp;·&nbsp; or use Upload in the panel</div>
+
+<div id="panel" class="dock-right">
+  <div class="panel-title">DitherCode</div>
+  <div id="controls"></div>
+  <div class="hint">H = hide panel · drag &amp; drop an image</div>
+</div>
+
+<script>
+/* ============================================================
+   defaltho — Experiments shared control kit
+   buildPanel(container, schema, onChange)
+   ============================================================ */
+function buildPanel(container, schema, onChange) {
+  const values = {};
+  const els = {};
+  const fire = (id) => { if (onChange) onChange(values, id); };
+
+  function fmt(v, step) {
+    const dec = (String(step).split('.')[1] || '').length;
+    return dec ? Number(v).toFixed(Math.min(dec, 3)) : String(v);
+  }
+  function normOptions(opts) {
+    return (opts || []).map((o) =>
+      (typeof o === 'object') ? o : { value: o, label: String(o) });
+  }
+  function row(cls) {
+    const r = document.createElement('div');
+    r.className = 'ctl ' + (cls || '');
+    container.appendChild(r);
+    return r;
+  }
+
+  schema.forEach((def) => {
+    const t = def.type;
+
+    if (t === 'section') {
+      const r = row('ctl-section');
+      r.textContent = def.label;
+      return;
+    }
+    if (t === 'note') {
+      const r = row('ctl-note');
+      r.textContent = def.text;
+      return;
+    }
+
+    if (t === 'slider') {
+      values[def.id] = def.val;
+      const r = row('ctl-slider');
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span>' +
+        '<span class="val">' + fmt(def.val, def.step) + '</span></div>' +
+        '<input type="range" min="' + def.min + '" max="' + def.max +
+        '" step="' + def.step + '" value="' + def.val + '">';
+      const input = r.querySelector('input');
+      const valEl = r.querySelector('.val');
+      els[def.id] = input;
+      input.addEventListener('input', function () {
+        values[def.id] = parseFloat(this.value);
+        valEl.textContent = fmt(values[def.id], def.step);
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'select') {
+      values[def.id] = def.val;
+      const r = row('ctl-select');
+      const opts = normOptions(def.options);
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span></div>' +
+        '<div class="select-wrap"><select>' +
+        opts.map((o) => '<option value="' + o.value + '"' +
+          (o.value === def.val ? ' selected' : '') + '>' + o.label + '</option>').join('') +
+        '</select></div>';
+      const sel = r.querySelector('select');
+      els[def.id] = sel;
+      sel.addEventListener('change', function () {
+        values[def.id] = this.value;
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'segmented') {
+      values[def.id] = def.val;
+      const r = row('ctl-segmented');
+      const opts = normOptions(def.options);
+      r.innerHTML = '<div class="lbl"><span>' + def.label + '</span></div>' +
+        '<div class="seg"></div>';
+      const seg = r.querySelector('.seg');
+      opts.forEach((o) => {
+        const b = document.createElement('button');
+        b.className = 'seg-btn' + (o.value === def.val ? ' active' : '');
+        b.textContent = o.label;
+        b.addEventListener('click', () => {
+          values[def.id] = o.value;
+          seg.querySelectorAll('.seg-btn').forEach((x) => x.classList.remove('active'));
+          b.classList.add('active');
+          fire(def.id);
+        });
+        seg.appendChild(b);
+      });
+      els[def.id] = seg;
+      return;
+    }
+
+    if (t === 'color') {
+      values[def.id] = def.val;
+      const r = row('ctl-color');
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span>' +
+        '<span class="val mono">' + def.val + '</span></div>' +
+        '<input type="color" value="' + def.val + '">';
+      const input = r.querySelector('input');
+      const valEl = r.querySelector('.val');
+      els[def.id] = input;
+      input.addEventListener('input', function () {
+        values[def.id] = this.value;
+        valEl.textContent = this.value;
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'toggle') {
+      values[def.id] = !!def.val;
+      const r = row('ctl-toggle');
+      r.innerHTML =
+        '<span class="lbl-inline">' + def.label + '</span>' +
+        '<button class="switch' + (def.val ? ' on' : '') +
+        '" role="switch" aria-checked="' + !!def.val + '"><i></i></button>';
+      const btn = r.querySelector('.switch');
+      els[def.id] = btn;
+      btn.addEventListener('click', () => {
+        values[def.id] = !values[def.id];
+        btn.classList.toggle('on', values[def.id]);
+        btn.setAttribute('aria-checked', values[def.id]);
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'text') {
+      values[def.id] = def.val || '';
+      const r = row('ctl-text');
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span></div>' +
+        '<input type="text" value="' + (def.val || '').replace(/"/g, '&quot;') +
+        '" placeholder="' + (def.placeholder || '') + '">';
+      const input = r.querySelector('input');
+      els[def.id] = input;
+      input.addEventListener('input', function () {
+        values[def.id] = this.value;
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'number') {
+      values[def.id] = def.val;
+      const r = row('ctl-number');
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span></div>' +
+        '<input type="number" value="' + def.val + '"' +
+        (def.min != null ? ' min="' + def.min + '"' : '') +
+        (def.max != null ? ' max="' + def.max + '"' : '') +
+        (def.step != null ? ' step="' + def.step + '"' : '') + '>';
+      const input = r.querySelector('input');
+      els[def.id] = input;
+      input.addEventListener('input', function () {
+        values[def.id] = this.value === '' ? '' : parseFloat(this.value);
+        fire(def.id);
+      });
+      return;
+    }
+
+    if (t === 'swatches') {
+      values[def.id] = (def.val || ['#ffffff']).slice();
+      const r = row('ctl-swatches');
+      r.innerHTML =
+        '<div class="lbl"><span>' + def.label + '</span>' +
+        '<span class="val count"></span></div><div class="swatch-list"></div>';
+      const list = r.querySelector('.swatch-list');
+      const count = r.querySelector('.count');
+      const minN = def.min || 1, maxN = def.max || 16;
+
+      function render() {
+        list.innerHTML = '';
+        count.textContent = values[def.id].length;
+        values[def.id].forEach((hex, i) => {
+          const chip = document.createElement('div');
+          chip.className = 'swatch';
+          chip.innerHTML =
+            '<input type="color" value="' + hex + '">' +
+            (values[def.id].length > minN ? '<button class="sw-x" title="remove">×</button>' : '');
+          const ci = chip.querySelector('input');
+          ci.addEventListener('input', function () {
+            values[def.id][i] = this.value;
+            fire(def.id);
+          });
+          const rm = chip.querySelector('.sw-x');
+          if (rm) rm.addEventListener('click', () => {
+            values[def.id].splice(i, 1); render(); fire(def.id);
+          });
+          list.appendChild(chip);
+        });
+        if (values[def.id].length < maxN) {
+          const add = document.createElement('button');
+          add.className = 'swatch-add'; add.textContent = '+';
+          add.title = 'add colour';
+          add.addEventListener('click', () => {
+            const last = values[def.id][values[def.id].length - 1] || '#888888';
+            values[def.id].push(last); render(); fire(def.id);
+          });
+          list.appendChild(add);
+        }
+      }
+      els[def.id] = { render, el: list };
+      render();
+      return;
+    }
+
+    if (t === 'file') {
+      const r = row('ctl-file');
+      const accept = def.accept || '';
+      r.innerHTML =
+        '<button class="tool-btn">' + (def.label || 'Upload') + '</button>' +
+        '<input type="file" accept="' + accept + '" hidden>';
+      const btn = r.querySelector('.tool-btn');
+      const input = r.querySelector('input');
+      els[def.id] = input;
+      btn.addEventListener('click', () => input.click());
+      input.addEventListener('change', function () {
+        const f = this.files && this.files[0];
+        if (!f || !def.onFile) return;
+        const reader = new FileReader();
+        reader.onload = () => def.onFile(reader.result, f);
+        if (def.asText) reader.readAsText(f); else reader.readAsDataURL(f);
+      });
+      return;
+    }
+
+    if (t === 'button') {
+      const r = row('ctl-button');
+      r.innerHTML = '<button class="tool-btn' +
+        (def.variant === 'primary' ? ' primary' : '') + '">' + def.label + '</button>';
+      const btn = r.querySelector('button');
+      els[def.id] = btn;
+      btn.addEventListener('click', () => { if (def.onClick) def.onClick(values); });
+      return;
+    }
+  });
+
+  return {
+    values,
+    get: (id) => values[id],
+    el: (id) => els[id],
+    set(id, v) {
+      values[id] = v;
+      const e = els[id];
+      if (!e) return;
+      if (e.tagName === 'SELECT' || e.type === 'range' || e.type === 'color' ||
+          e.type === 'text' || e.type === 'number') {
+        e.value = v;
+        const valEl = e.parentElement.querySelector('.val');
+        if (valEl && e.type !== 'text') valEl.textContent = v;
+      } else if (e.classList && e.classList.contains('switch')) {
+        e.classList.toggle('on', !!v); e.setAttribute('aria-checked', !!v);
+      } else if (e.render) { e.render(); }
+    },
+    refresh() { if (onChange) onChange(values, null); },
+  };
+}
+</script>
+<script>
+// ── defaltho — Dither Room ──
+// Classic dithering algorithms with colour modes, palette tools, smart
+// resampling and DPI/print-ready PNG export. Real-time.
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const work = document.createElement('canvas');
+const wctx = work.getContext('2d', { willReadFrequently: true });
+const dpr = Math.min(devicePixelRatio || 1, 2);
+let srcImg = null;
+let WW = 0, WH = 0, resLum = null, workData = null;
+
+const hex2rgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgb2hex = (r, g, b) => '#' + [r, g, b].map((x) => Math.round(x).toString(16).padStart(2, '0')).join('');
+const clamp = (x) => x < 0 ? 0 : x > 255 ? 255 : x;
+
+const KERNELS = {
+  floyd:       { div: 16, k: [[1, 0, 7], [-1, 1, 3], [0, 1, 5], [1, 1, 1]] },
+  atkinson:    { div: 8,  k: [[1, 0, 1], [2, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1], [0, 2, 1]] },
+  jarvis:      { div: 48, k: [[1, 0, 7], [2, 0, 5], [-2, 1, 3], [-1, 1, 5], [0, 1, 7], [1, 1, 5], [2, 1, 3], [-2, 2, 1], [-1, 2, 3], [0, 2, 5], [1, 2, 3], [2, 2, 1]] },
+  stucki:      { div: 42, k: [[1, 0, 8], [2, 0, 4], [-2, 1, 2], [-1, 1, 4], [0, 1, 8], [1, 1, 4], [2, 1, 2], [-2, 2, 1], [-1, 2, 2], [0, 2, 4], [1, 2, 2], [2, 2, 1]] },
+  burkes:      { div: 32, k: [[1, 0, 8], [2, 0, 4], [-2, 1, 2], [-1, 1, 4], [0, 1, 8], [1, 1, 4], [2, 1, 2]] },
+  sierra:      { div: 32, k: [[1, 0, 5], [2, 0, 3], [-2, 1, 2], [-1, 1, 4], [0, 1, 5], [1, 1, 4], [2, 1, 2], [-1, 2, 2], [0, 2, 3], [1, 2, 2]] },
+  'sierra-lite': { div: 4, k: [[1, 0, 2], [-1, 1, 1], [0, 1, 1]] },
+  'sierra2row':  { div: 16, k: [[1, 0, 4], [2, 0, 3], [-2, 1, 1], [-1, 1, 2], [0, 1, 3], [1, 1, 2], [2, 1, 1]] },
+};
+const B2 = [0, 2, 3, 1];
+const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const B8 = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38,
+  60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25,
+  15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21];
+const BAYER = {
+  bayer2: { n: 2, m: B2.map((x) => x / 4) },
+  bayer4: { n: 4, m: B4.map((x) => x / 16) },
+  bayer8: { n: 8, m: B8.map((x) => x / 64) },
+};
+
+const LUM_MODES = ['1bit', 'grayscale', 'duotone'];
+
+function buildAllowed() {
+  const v = P.values, pal = v.palette, N = (v.mode === '1bit') ? 2 : Math.max(2, Math.round(v.levels));
+  if (v.mode === '1bit') return [hex2rgb(pal[0] || '#000000'), hex2rgb(pal[1] || '#ffffff')];
+  if (v.mode === 'grayscale') { const a = []; for (let i = 0; i < N; i++) { const g = i / (N - 1) * 255; a.push([g, g, g]); } return a; }
+  if (v.mode === 'duotone') {
+    const a = [], c0 = hex2rgb(pal[0] || '#000000'), c1 = hex2rgb(pal[1] || '#ffffff');
+    for (let i = 0; i < N; i++) { const t = i / (N - 1); a.push([c0[0] + (c1[0] - c0[0]) * t, c0[1] + (c1[1] - c0[1]) * t, c0[2] + (c1[2] - c0[2]) * t]); }
+    return a;
+  }
+  if (v.mode === 'palette') return pal.map(hex2rgb);
+  return null;
+}
+
+function nearest(allowed, r, g, b) {
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < allowed.length; i++) {
+    const c = allowed[i], dr = r - c[0], dg = g - c[1], db = b - c[2], d = dr * dr + dg * dg + db * db;
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return allowed[bi];
+}
+const qstep = (x, lv) => Math.round(clamp(x) / 255 * (lv - 1)) / (lv - 1) * 255;
+
+function dither(id, w, h) {
+  const d = id.data, v = P.values;
+  const lum = LUM_MODES.indexOf(v.mode) >= 0;
+  const levels = (v.mode === '1bit') ? 2 : Math.max(2, Math.round(v.levels));
+  const allowed = buildAllowed();
+  const steps = allowed ? allowed.length : levels;
+  const spread = 255 / (steps - 1);
+  const contrast = (v.contrast + 100) / 100, bright = v.brightness;
+  const kernel = KERNELS[v.algo], bayer = BAYER[v.algo];
+
+  const buf = new Float32Array(w * h * 3);
+  for (let i = 0, j = 0; i < d.length; i += 4, j += 3) {
+    let r = (d[i] - 128) * contrast + 128 + bright;
+    let g = (d[i + 1] - 128) * contrast + 128 + bright;
+    let b = (d[i + 2] - 128) * contrast + 128 + bright;
+    if (v.invert) { r = 255 - r; g = 255 - g; b = 255 - b; }
+    if (lum) { const L = 0.299 * r + 0.587 * g + 0.114 * b; r = g = b = L; }
+    buf[j] = r; buf[j + 1] = g; buf[j + 2] = b;
+  }
+
+  if (v.sharpen > 0) {
+    const amt = v.sharpen / 100;
+    const tmp = buf.slice();
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const j = (y * w + x) * 3;
+        for (let c = 0; c < 3; c++) {
+          const blur = (
+            tmp[((y-1)*w+(x-1))*3+c] + tmp[((y-1)*w+x)*3+c] + tmp[((y-1)*w+(x+1))*3+c] +
+            tmp[(y*w+(x-1))*3+c]     + tmp[j+c]              + tmp[(y*w+(x+1))*3+c] +
+            tmp[((y+1)*w+(x-1))*3+c] + tmp[((y+1)*w+x)*3+c] + tmp[((y+1)*w+(x+1))*3+c]
+          ) / 9;
+          buf[j + c] = tmp[j + c] + amt * (tmp[j + c] - blur);
+        }
+      }
+    }
+  }
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const j = (y * w + x) * 3, i = (y * w + x) * 4;
+      let r = buf[j], g = buf[j + 1], b = buf[j + 2];
+      if (v.noise > 0) { const n = (Math.random() - 0.5) * v.noise; r += n; g += n; b += n; }
+      if (bayer) {
+        const t = (bayer.m[(y % bayer.n) * bayer.n + (x % bayer.n)] - 0.5) * spread;
+        r += t; g += t; b += t;
+      }
+      let or, og, ob;
+      if (allowed) { const c = nearest(allowed, r, g, b); or = c[0]; og = c[1]; ob = c[2]; }
+      else { or = qstep(r, levels); og = qstep(g, levels); ob = qstep(b, levels); }
+
+      if (kernel) {
+        const er = r - or, eg = g - og, eb = b - ob;
+        for (const [dx, dy, wgt] of kernel.k) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || nx >= w || ny >= h) continue;
+          const nj = (ny * w + nx) * 3, f = wgt / kernel.div;
+          buf[nj] += er * f; buf[nj + 1] += eg * f; buf[nj + 2] += eb * f;
+        }
+      }
+      d[i] = clamp(or); d[i + 1] = clamp(og); d[i + 2] = clamp(ob);
+    }
+  }
+}
+
+function process() {
+  if (!srcImg) { draw(); return; }
+  const v = P.values, px = Math.max(1, Math.round(v.pixel));
+  WW = Math.max(1, Math.round(srcImg.width / px));
+  WH = Math.max(1, Math.round(srcImg.height / px));
+  work.width = WW; work.height = WH;
+  wctx.imageSmoothingEnabled = true;
+  wctx.clearRect(0, 0, WW, WH);
+  wctx.drawImage(srcImg, 0, 0, WW, WH);
+  const id = wctx.getImageData(0, 0, WW, WH);
+
+  const contrast = (v.contrast + 100) / 100, bright = v.brightness;
+  resLum = new Float32Array(WW * WH);
+  for (let i = 0, j = 0; i < id.data.length; i += 4, j++) {
+    const r = (id.data[i] - 128) * contrast + 128 + bright;
+    const g = (id.data[i + 1] - 128) * contrast + 128 + bright;
+    const b = (id.data[i + 2] - 128) * contrast + 128 + bright;
+    let L = 0.299 * r + 0.587 * g + 0.114 * b; if (v.invert) L = 255 - L;
+    resLum[j] = L < 0 ? 0 : L > 255 ? 255 : L;
+  }
+
+  dither(id, WW, WH);
+  wctx.putImageData(id, 0, 0);
+  workData = id.data;
+  draw();
+}
+let raf = 0;
+function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; process(); }); }
+
+const ASCII_RAMP = ' .:-=+*#%@';
+function renderInto(g, dx, dy, dw, dh) {
+  const v = P.values;
+  if (v.render === 'pixels' || !workData) {
+    g.imageSmoothingEnabled = false;
+    g.drawImage(work, dx, dy, dw, dh);
+    return;
+  }
+  const paper = hex2rgb(v.paper), paperL = 0.299 * paper[0] + 0.587 * paper[1] + 0.114 * paper[2];
+  g.fillStyle = v.paper; g.fillRect(dx, dy, dw, dh);
+  const cw = dw / WW, ch = dh / WH, cell = Math.min(cw, ch);
+  const d = workData;
+  for (let r = 0; r < WH; r++) {
+    for (let c = 0; c < WW; c++) {
+      const k = r * WW + c, i = k * 4;
+      const cl = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (Math.abs(cl - paperL) < 22) continue;
+      const col = 'rgb(' + d[i] + ',' + d[i + 1] + ',' + d[i + 2] + ')';
+      const dk = 1 - (resLum ? resLum[k] : cl) / 255;
+      const x = dx + (c + 0.5) * cw, y = dy + (r + 0.5) * ch;
+      if (v.render === 'halftone') {
+        const rad = (cell / 2) * Math.max(dk, 0.05) * 1.18;
+        if (rad > 0.15) { g.fillStyle = col; g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill(); }
+      } else if (v.render === 'circles') {
+        g.fillStyle = col; g.beginPath(); g.arc(x, y, cell * 0.42, 0, 7); g.fill();
+      } else if (v.render === 'cross') {
+        const s = cell * 0.36; g.strokeStyle = col; g.lineWidth = Math.max(0.6, cell * 0.16);
+        g.beginPath(); g.moveTo(x - s, y - s); g.lineTo(x + s, y + s);
+        g.moveTo(x + s, y - s); g.lineTo(x - s, y + s); g.stroke();
+      } else if (v.render === 'ascii') {
+        const ch2 = ASCII_RAMP[Math.min(ASCII_RAMP.length - 1, Math.floor(dk * ASCII_RAMP.length))];
+        if (ch2 !== ' ') { g.fillStyle = col; g.font = cell * 1.1 + 'px ui-monospace, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch2, x, y); }
+      }
+    }
+  }
+}
+
+function draw() {
+  const W = innerWidth, H = innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  if (!WW || !srcImg) return;
+  const fit = Math.min(W / WW, H / WH) * 0.9;
+  const dw = WW * fit, dh = WH * fit;
+  renderInto(ctx, (W - dw) / 2, (H - dh) / 2, dw, dh);
+}
+addEventListener('resize', draw);
+
+function loadImage(src) {
+  const img = new Image();
+  img.onload = () => { srcImg = img; document.body.classList.add('has-img'); process(); };
+  img.src = src;
+}
+['dragenter', 'dragover'].forEach((e) => addEventListener(e, (ev) => {
+  ev.preventDefault(); document.body.classList.add('dragging');
+}));
+['dragleave', 'drop'].forEach((e) => addEventListener(e, (ev) => {
+  ev.preventDefault(); if (e === 'drop' || ev.relatedTarget === null) document.body.classList.remove('dragging');
+}));
+addEventListener('drop', (ev) => {
+  const f = ev.dataTransfer && ev.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) { const r = new FileReader(); r.onload = () => loadImage(r.result); r.readAsDataURL(f); }
+});
+
+const PRESETS = {
+  bw: ['#000000', '#ffffff'],
+  green: ['#0e2a1e', '#9fe870'],
+  amber: ['#1a1200', '#ffb000'],
+  blueprint: ['#0a1a2f', '#7fb2ff'],
+  cmy: ['#000000', '#00aeef', '#ec008c', '#fff200', '#ffffff'],
+};
+
+function extractPalette(n) {
+  if (!srcImg) return;
+  const k = 64, c = document.createElement('canvas'); c.width = k; c.height = k;
+  const cc = c.getContext('2d'); cc.drawImage(srcImg, 0, 0, k, k);
+  const d = cc.getImageData(0, 0, k, k).data;
+  let boxes = [[]];
+  for (let i = 0; i < d.length; i += 4) boxes[0].push([d[i], d[i + 1], d[i + 2]]);
+  const range = (box, ch) => { let lo = 255, hi = 0; for (const p of box) { if (p[ch] < lo) lo = p[ch]; if (p[ch] > hi) hi = p[ch]; } return hi - lo; };
+  while (boxes.length < n) {
+    boxes.sort((a, b) => Math.max(range(b, 0), range(b, 1), range(b, 2)) - Math.max(range(a, 0), range(a, 1), range(a, 2)));
+    const b0 = boxes.shift(); if (!b0 || b0.length < 2) { boxes.push(b0); break; }
+    let ch = 0, best = -1; for (let c2 = 0; c2 < 3; c2++) { const r = range(b0, c2); if (r > best) { best = r; ch = c2; } }
+    b0.sort((p, q) => p[ch] - q[ch]); const mid = Math.floor(b0.length / 2);
+    boxes.push(b0.slice(0, mid), b0.slice(mid));
+  }
+  const avg = (box) => { const s = [0, 0, 0]; box.forEach((p) => { s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; }); return s.map((x) => x / box.length); };
+  const cols = boxes.slice(0, n).map(avg).map((c2) => rgb2hex(c2[0], c2[1], c2[2]));
+  P.set('palette', cols); process();
+}
+
+const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
+function crc32(u8) { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function setDpi(buf, dpi) {
+  const data = new Uint8Array(buf), ppm = Math.round(dpi / 0.0254);
+  const phys = new Uint8Array(21), dv = new DataView(phys.buffer);
+  dv.setUint32(0, 9); phys[4] = 0x70; phys[5] = 0x48; phys[6] = 0x59; phys[7] = 0x73;
+  dv.setUint32(8, ppm); dv.setUint32(12, ppm); phys[16] = 1;
+  dv.setUint32(17, crc32(phys.subarray(4, 17)));
+  const out = new Uint8Array(data.length + 21);
+  out.set(data.subarray(0, 33), 0); out.set(phys, 33); out.set(data.subarray(33), 54);
+  return out;
+}
+function exportPNG() {
+  if (!srcImg) return;
+  const v = P.values, outW = Math.max(16, Math.round(v.outW));
+  const outH = Math.round(outW * WH / WW);
+  const ex = document.createElement('canvas'); ex.width = outW; ex.height = outH;
+  const g = ex.getContext('2d');
+  renderInto(g, 0, 0, outW, outH);
+  ex.toBlob((blob) => {
+    blob.arrayBuffer().then((ab) => {
+      const out = setDpi(ab, v.dpi);
+      const url = URL.createObjectURL(new Blob([out], { type: 'image/png' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'dither.png'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+  }, 'image/png');
+}
+
+const P = buildPanel(document.getElementById('controls'), [
+  { type: 'section', label: 'Image' },
+  { type: 'file', id: 'img', label: 'Upload image', accept: 'image/*',
+    onFile: (d) => loadImage(d) },
+
+  { type: 'section', label: 'Dither' },
+  { type: 'select', id: 'algo', label: 'Algorithm', val: 'floyd', options: [
+    { value: 'none', label: 'Threshold (none)' },
+    { value: 'bayer2', label: 'Ordered · Bayer 2×2' },
+    { value: 'bayer4', label: 'Ordered · Bayer 4×4' },
+    { value: 'bayer8', label: 'Ordered · Bayer 8×8' },
+    { value: 'floyd', label: 'Floyd–Steinberg' },
+    { value: 'atkinson', label: 'Atkinson' },
+    { value: 'jarvis', label: 'Jarvis-Judice-Ninke' },
+    { value: 'stucki', label: 'Stucki' },
+    { value: 'burkes', label: 'Burkes' },
+    { value: 'sierra', label: 'Sierra' },
+    { value: 'sierra-lite', label: 'Sierra Lite' },
+    { value: 'sierra2row',  label: 'Sierra Two-Row' }] },
+  { type: 'slider', id: 'pixel', label: 'Pixel size', min: 1, max: 16, step: 1, val: 3 },
+
+  { type: 'section', label: 'Render style' },
+  { type: 'select', id: 'render', label: 'Style', val: 'pixels', options: [
+    { value: 'pixels', label: 'Pixels' },
+    { value: 'halftone', label: 'Halftone dots' },
+    { value: 'circles', label: 'Dots (uniform)' },
+    { value: 'cross', label: 'Cross-stitch' },
+    { value: 'ascii', label: 'ASCII' }] },
+  { type: 'color', id: 'paper', label: 'Paper (bg)', val: '#ffffff' },
+
+  { type: 'section', label: 'Colour mode' },
+  { type: 'select', id: 'mode', label: 'Mode', val: '1bit', options: [
+    { value: '1bit', label: '1-bit (2 colours)' },
+    { value: 'grayscale', label: 'Grayscale' },
+    { value: 'duotone', label: 'Duotone' },
+    { value: 'palette', label: 'Custom palette' },
+    { value: 'color', label: 'Full colour' }] },
+  { type: 'slider', id: 'levels', label: 'Levels', min: 2, max: 16, step: 1, val: 4 },
+
+  { type: 'section', label: 'Palette' },
+  { type: 'segmented', id: 'preset', label: 'Presets', val: 'bw', options: [
+    { value: 'bw', label: 'B&W' }, { value: 'green', label: 'Green' },
+    { value: 'amber', label: 'Amber' }, { value: 'blueprint', label: 'Blue' },
+    { value: 'cmy', label: 'CMY' }] },
+  { type: 'swatches', id: 'palette', label: 'Colours', val: ['#000000', '#ffffff'], min: 2, max: 8 },
+  { type: 'button', id: 'extract', label: 'Extract from image',
+    onClick: () => extractPalette(Math.max(2, Math.round(P.values.levels))) },
+
+  { type: 'section', label: 'Adjust' },
+  { type: 'slider', id: 'brightness', label: 'Brightness', min: -100, max: 100, step: 1, val: 0 },
+  { type: 'slider', id: 'contrast', label: 'Contrast', min: -100, max: 100, step: 1, val: 0 },
+  { type: 'toggle', id: 'invert', label: 'Invert', val: false },
+  { type: 'slider', id: 'noise',   label: 'Noise',   min: 0, max: 50,  step: 1, val: 0 },
+  { type: 'slider', id: 'sharpen', label: 'Sharpen', min: 0, max: 100, step: 1, val: 0 },
+
+  { type: 'section', label: 'Export (print-ready)' },
+  { type: 'number', id: 'outW', label: 'Output width (px)', val: 2000, min: 16, step: 1 },
+  { type: 'number', id: 'dpi', label: 'DPI', val: 300, min: 72, step: 1 },
+  { type: 'button', id: 'png', label: 'Export PNG', variant: 'primary', onClick: exportPNG },
+], (vals, id) => {
+  if (id === 'preset') P.set('palette', PRESETS[vals.preset].slice());
+  schedule();
+});
+
+draw();
+
+document.addEventListener('keydown', (e) => {
+  const tag = (document.activeElement || {}).tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'h' || e.key === 'H') document.getElementById('panel').classList.toggle('hidden');
+});
+</script>
+</body>
+</html>
